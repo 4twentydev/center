@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  pin       String?
+  role      String   @default("technician") // admin, manager, technician
+  avatar    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedJobs  Job[]       @relation("AssignedTo")
+  createdJobs   Job[]       @relation("CreatedBy")
+  timeEntries   TimeEntry[]
+  jobComments   JobComment[]
+}
+
+model Job {
+  id          String   @id @default(cuid())
+  jobNumber   String   @unique
+  title       String
+  description String?
+  status      String   @default("queued") // queued, in_progress, qc, complete, on_hold
+  priority    String   @default("normal") // low, normal, high, urgent
+  dueDate     DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User    @relation("CreatedBy", fields: [createdById], references: [id])
+
+  customer     String?
+  estimatedHours Float?
+  materials    JobMaterial[]
+  timeEntries  TimeEntry[]
+  comments     JobComment[]
+}
+
+model JobComment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String?  @unique
+  description String?
+  category    String?
+  quantity    Int      @default(0)
+  unit        String   @default("ea") // ea, ft, in, lb, kg, gal, etc
+  minStock    Int      @default(0)
+  costPerUnit Float?
+  location    String?  // bin/shelf location
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  jobMaterials JobMaterial[]
+}
+
+model JobMaterial {
+  id        String   @id @default(cuid())
+  quantity  Float
+  notes     String?
+  createdAt DateTime @default(now())
+
+  jobId           String
+  job             Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+}
+
+model TimeEntry {
+  id        String    @id @default(cuid())
+  clockIn   DateTime  @default(now())
+  clockOut  DateTime?
+  breakMins Int       @default(0)
+  notes     String?
+  type      String    @default("shift") // shift, job
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  jobId  String?
+  job    Job?   @relation(fields: [jobId], references: [id])
+}
